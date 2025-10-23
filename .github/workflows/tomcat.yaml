@@ -1,33 +1,130 @@
-name: ci/cd pipeline to deploy to tomcat
-on: 
+name: CI/CD Pipeline for train-ticket-reservation Deployment
+
+on:
   push:
-    branches: master
+    branches:
+      - main
+  workflow_dispatch:
+
 jobs:
-  build-deploy:
+  deploy-dev:
+    name: Build & Deploy to DEV
     runs-on: ubuntu-latest
     steps:
-      - name: checkout code
-        uses: actions/checkout@v3
-      
-      - name: set-up jdk
-        uses: actions/setup-java@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Up JDK
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'   # Updated Java version
-      - name: validate with maven
-        run: mvn validate
-      - name: compile with maven
-        run: mvn compile
-      - name: test with maven
-        run: mvn test
-      - name: package with maven
-        run: mvn package
-      - name: verify WAR file
-        run: ls -lh target/
-      
-      - name: Build, Test and SonarQube Scan
+          java-version: '17'
+
+      - name: Build WAR with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Verify WAR File
+        run: ls -lh target/*.war
+
+      - name: Deploy WAR to Tomcat DEV
         run: |
-          mvn clean verify sonar:sonar \
-            -Dsonar.projectKey=vcube139 \
-            -Dsonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
-            -Dsonar.login="${{ secrets.SONAR_TOKEN }}"
+          set -u
+          WAR_FILE=$(ls target/*.war)
+          echo "Deploying $WAR_FILE to DEV"
+          if [ -z "${{ secrets.TOMCAT_USER_DEV }}" ] || [ -z "${{ secrets.TOMCAT_PASS_DEV }}" ] || [ -z "${{ secrets.TOMCAT_URL_DEV }}" ]; then
+            echo "ERROR: DEV secrets are missing"
+            exit 1
+          fi
+          curl -v -u "${{ secrets.TOMCAT_USER_DEV }}:${{ secrets.TOMCAT_PASS_DEV }}" \
+            -T "$WAR_FILE" \
+            "http://${{ secrets.TOMCAT_URL_DEV }}:8080/manager/text/deploy?path=/trainbook-dev&update=true"
+
+  deploy-test:
+    name: Build & Deploy to TEST
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build WAR with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Deploy WAR to Tomcat TEST
+        run: |
+          set -u
+          WAR_FILE=$(ls target/*.war)
+          echo "Deploying $WAR_FILE to TEST"
+          if [ -z "${{ secrets.TOMCAT_USER_TEST }}" ] || [ -z "${{ secrets.TOMCAT_PASS_TEST }}" ] || [ -z "${{ secrets.TOMCAT_URL_TEST }}" ]; then
+            echo "ERROR: TEST secrets are missing"
+            exit 1
+          fi
+          curl -v -u "${{ secrets.TOMCAT_USER_TEST }}:${{ secrets.TOMCAT_PASS_TEST }}" \
+            -T "$WAR_FILE" \
+            "http://${{ secrets.TOMCAT_URL_TEST }}:8080/manager/text/deploy?path=/trainbook-test&update=true"
+
+  deploy-preprod:
+    name: Build & Deploy to PRE-PROD
+    runs-on: ubuntu-latest
+    needs: deploy-test
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build WAR with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Deploy WAR to Tomcat PRE-PROD
+        run: |
+          set -u
+          WAR_FILE=$(ls target/*.war)
+          echo "Deploying $WAR_FILE to PRE-PROD"
+          if [ -z "${{ secrets.TOMCAT_USER_PRE_PROD }}" ] || [ -z "${{ secrets.TOMCAT_PASS_PRE_PROD }}" ] || [ -z "${{ secrets.TOMCAT_URL_PRE_PROD }}" ]; then
+            echo "ERROR: PRE-PROD secrets are missing"
+            exit 1
+          fi
+          curl -v -u "${{ secrets.TOMCAT_USER_PRE_PROD }}:${{ secrets.TOMCAT_PASS_PRE_PROD }}" \
+            -T "$WAR_FILE" \
+            "http://${{ secrets.TOMCAT_URL_PRE_PROD }}:8080/manager/text/deploy?path=/trainbook-preprod&update=true"
+
+  deploy-prod:
+    name: Build & Deploy to PROD
+    runs-on: ubuntu-latest
+    needs: deploy-preprod
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build WAR with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Deploy WAR to Tomcat PROD
+        run: |
+          set -u
+          WAR_FILE=$(ls target/*.war)
+          echo "Deploying $WAR_FILE to PROD"
+          if [ -z "${{ secrets.TOMCAT_USER_PROD }}" ] || [ -z "${{ secrets.TOMCAT_PASS_PROD }}" ] || [ -z "${{ secrets.TOMCAT_URL_PROD }}" ]; then
+            echo "ERROR: PROD secrets are missing"
+            exit 1
+          fi
+          curl -v -u "${{ secrets.TOMCAT_USER_PROD }}:${{ secrets.TOMCAT_PASS_PROD }}" \
+            -T "$WAR_FILE" \
+            "http://${{ secrets.TOMCAT_URL_PROD }}:8080/manager/text/deploy?path=/trainbook-prod&update=true"
