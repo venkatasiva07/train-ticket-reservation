@@ -12,3 +12,4 @@ public interface BookingService {
 	public HistoryBean createHistory(HistoryBean bookingDetails) throws TrainException;
 
 }
+
