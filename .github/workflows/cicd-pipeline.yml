@@ -1,0 +1,68 @@
+# .github/workflows/cicd-pipeline.yml
+
+name: Java CI/CD Pipeline
+
+# Trigger this workflow on pushes to the main branch
+on:
+  push:
+    branches: [ "main" ]
+
+# Define environment variables to use in the pom.xml
+# This pulls the values from your GitHub Secrets
+env:
+  NEXUS_URL: ${{ secrets.NEXUS_URL }}
+  TOMCAT_URL: ${{ secrets.TOMCAT_URL }}
+
+jobs:
+  build-analyze-deploy:
+    runs-on: ubuntu-latest # Use a standard Linux runner
+
+    steps:
+    - name: 1. Checkout Code
+      uses: actions/checkout@v4
+      with:
+        # SonarQube needs the full history for accurate analysis
+        fetch-depth: 0  
+
+    - name: 2. Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: 3. Create Maven settings.xml
+      uses: s4u/maven-settings-action@v3.0.0
+      with:
+        # This action securely creates a settings.xml file at runtime
+        # It uses your GitHub Secrets to provide credentials for Maven
+        servers: |
+          [{
+            "id": "nexus-releases",
+            "username": "${{ secrets.NEXUS_USERNAME }}",
+            "password": "${{ secrets.NEXUS_PASSWORD }}"
+          },
+          {
+            "id": "tomcat-server",
+            "username": "${{ secrets.TOMCAT_USERNAME }}",
+            "password": "${{ secrets.TOMCAT_PASSWORD }}"
+          }]
+
+    - name: 4. Build and Analyze with SonarQube
+      # This command builds, tests, and runs Sonar analysis
+      # It uses the SonarQube secrets you configured
+      run: |
+        mvn -B verify sonar:sonar \
+          -Dsonar.projectKey=train-ticket-reservation \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+    - name: 5. Deploy to Nexus
+      # The 'deploy' goal uploads the artifact to the URL in distributionManagement
+      # The '--settings .m2/settings.xml' part tells it to use the file we just created
+      run: mvn -B deploy --settings .m2/settings.xml
+
+    - name: 6. Deploy to Tomcat
+      # The 'tomcat7:redeploy' goal deploys the app to your server
+      # Using 'redeploy' ensures it overwrites the old version
+      run: mvn -B tomcat7:redeploy --settings .m2/settings.xml
