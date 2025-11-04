@@ -62,5 +62,10 @@ jobs:
         # Find the .war file in the target directory and list its size
         find target -name "*.war" -exec ls -lh {} +
     - name: 7. Deploy to Tomcat
-      # ✅ FIXED: Changed path from .m2/ to ~/.m2/
-      run: mvn -B tomcat7:redeploy --settings ~/.m2/settings.xml
+      run: |
+        # Step 7a: Undeploy the previous version. 
+        # We add 'failOnError=false' so it doesn't fail if this is the first deployment.
+        mvn -B tomcat7:undeploy --settings ~/.m2/settings.xml -Dmaven.tomcat.failOnError=false
+        
+        # Step 7b: Deploy the new version.
+        mvn -B tomcat7:deploy --settings ~/.m2/settings.xml
