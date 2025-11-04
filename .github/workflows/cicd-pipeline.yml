@@ -64,9 +64,6 @@ jobs:
 
     - name: 7. Deploy to Tomcat
       run: |
-        # Step 7a: Undeploy the previous version. 
-        # THIS FLAG IS THE FIX: It tells Maven not to fail on a 404 error.
-        mvn -B tomcat7:undeploy --settings ~/.m2/settings.xml -Dmaven.tomcat.failOnError=false
-        
-        # Step 7b: Deploy the new version.
+        # Just use 'deploy'. This command will deploy the new app
+        # and overwrite any old version if one exists.
         mvn -B tomcat7:deploy --settings ~/.m2/settings.xml
