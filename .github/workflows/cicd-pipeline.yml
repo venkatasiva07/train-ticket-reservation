@@ -64,7 +64,7 @@ jobs:
     - name: 7. Deploy to Tomcat
       run: |
         # Step 7a: Undeploy the previous version. 
-        # We add 'failOnError=false' so it doesn't fail if this is the first deployment.
+        # ✅ FIXED: Added the flag to prevent a 404 error from stopping the build.
         mvn -B tomcat7:undeploy --settings ~/.m2/settings.xml -Dmaven.tomcat.failOnError=false
         
         # Step 7b: Deploy the new version.
