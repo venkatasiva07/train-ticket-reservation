@@ -62,6 +62,23 @@
         <org>Venn1991</org>
       </configuration>
     </plugin>
+
+	<plugin>
+        <groupId>org.apache.tomcat.maven</groupId>
+        <artifactId>tomcat7-maven-plugin</artifactId>
+        <version>2.2</version>
+        <configuration>
+          <url>${env.TOMCAT_URL}</url>
+          <server>tomcat-server</server>
+          <path>/train-ticket</path>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.3.2</version>
+      </plugin>
 		</plugins>
 	</build>
 	<dependencies>
@@ -86,4 +103,11 @@
 			<version>3.1.0</version>
 		</dependency>
 	</dependencies>
+
+	<distributionManagement>
+    <repository>
+      <id>nexus-releases</id>
+      <url>${env.NEXUS_URL}</url>
+    </repository>
+  </distributionManagement>
 </project>
