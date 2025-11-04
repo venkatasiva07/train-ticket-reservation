@@ -62,8 +62,18 @@ jobs:
         # Find the .war file in the target directory and list its size
         find target -name "*.war" -exec ls -lh {} +
 
-    - name: 7. Deploy to Tomcat
+   # ... (Step 6. Check WAR File Size) ...
+
+    - name: 7. Deploy to Tomcat with curl
       run: |
-        # Just use 'deploy'. This command will deploy the new app
-        # and overwrite any old version if one exists.
-        mvn -B tomcat7:deploy --settings ~/.m2/settings.xml
+        # Use curl to upload the WAR file. This is more reliable than the old Maven plugin.
+        # We find the WAR file in the target/ directory
+        WAR_FILE=$(find target -name "*.war" | head -n 1)
+        
+        echo "Deploying $WAR_FILE to Tomcat..."
+
+        # The TOMCAT_URL secret is 'http://<ip>:8080/manager/text'
+        # This command uploads the file to the deploy endpoint.
+        curl -v -u "${{ secrets.TOMCAT_USERNAME }}:${{ secrets.TOMCAT_PASSWORD }}" \
+             -T "$WAR_FILE" \
+             "${{ secrets.TOMCAT_URL }}/deploy?path=/train-ticket&update=true"
