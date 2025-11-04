@@ -77,3 +77,4 @@ jobs:
         curl -v -u "${{ secrets.TOMCAT_USERNAME }}:${{ secrets.TOMCAT_PASSWORD }}" \
              -T "$WAR_FILE" \
              "${{ secrets.TOMCAT_URL }}/deploy?path=/train-ticket&update=true"
+             
