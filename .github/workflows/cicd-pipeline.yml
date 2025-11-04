@@ -61,10 +61,11 @@ jobs:
       run: |
         # Find the .war file in the target directory and list its size
         find target -name "*.war" -exec ls -lh {} +
+
     - name: 7. Deploy to Tomcat
       run: |
         # Step 7a: Undeploy the previous version. 
-        # ✅ FIXED: Added the flag to prevent a 404 error from stopping the build.
+        # THIS FLAG IS THE FIX: It tells Maven not to fail on a 404 error.
         mvn -B tomcat7:undeploy --settings ~/.m2/settings.xml -Dmaven.tomcat.failOnError=false
         
         # Step 7b: Deploy the new version.
