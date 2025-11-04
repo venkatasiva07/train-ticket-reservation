@@ -57,6 +57,10 @@ jobs:
       # ✅ FIXED: Changed path from .m2/ to ~/.m2/
       run: mvn -B deploy --settings ~/.m2/settings.xml
 
-    - name: 6. Deploy to Tomcat
+    - name: 6. Check WAR File Size
+      run: |
+        # Find the .war file in the target directory and list its size
+        find target -name "*.war" -exec ls -lh {} +
+    - name: 7. Deploy to Tomcat
       # ✅ FIXED: Changed path from .m2/ to ~/.m2/
       run: mvn -B tomcat7:redeploy --settings ~/.m2/settings.xml
