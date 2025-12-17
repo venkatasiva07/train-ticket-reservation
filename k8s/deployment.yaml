@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: train-ticket-app
-        # REPLACE 'your-dockerhub-user' below with your actual Docker Hub username
+        # This image will be updated by the pipeline automatically
         image: venkatasivareddybhavanam834/train-ticket-reservation:latest 
         ports:
         - containerPort: 8080
