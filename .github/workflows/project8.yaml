@@ -1,0 +1,106 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch: # Allows you to run this manually from the Actions tab if needed
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # --- PHASE 1: INITIALIZATION ---
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # --- PHASE 2: BUILD & CODE QUALITY ---
+      - name: Build with Maven
+        # Skips tests to save time, remove '-DskipTests' if you want unit tests to run
+        run: mvn clean package -DskipTests
+
+      - name: SonarQube Scan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: mvn sonar:sonar
+
+      # --- PHASE 3: DOCKER IMAGE ---
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          # Pushes two tags: the specific commit SHA (for versioning) and 'latest'
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/train-ticket-reservation:${{ github.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/train-ticket-reservation:latest
+
+      # --- PHASE 4: SECURITY SCAN ---
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ secrets.DOCKER_USERNAME }}/train-ticket-reservation:latest'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0' # Set to '1' if you want the pipeline to STOP on vulnerabilities
+
+      # --- PHASE 5: DEPLOYMENT (SSH METHOD) ---
+      
+      # Step A: Copy k8s files from GitHub to your EC2 Server
+      - name: Copy K8s Manifests to Master Node
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.MASTER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "k8s/*"
+          target: "/home/${{ secrets.SSH_USER }}/deploy_files"
+
+      # Step B: SSH into Server and Apply Changes
+      - name: Execute Deployment on Master Node
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.MASTER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 1. Apply the Deployment and Service YAMLs
+            kubectl apply -f /home/${{ secrets.SSH_USER }}/deploy_files/k8s/deployment.yaml
+            kubectl apply -f /home/${{ secrets.SSH_USER }}/deploy_files/k8s/service.yaml
+            
+            # 2. Update the image to the one we just built (using the SHA tag)
+            kubectl set image deployment/train-ticket-app train-ticket-app=${{ secrets.DOCKER_USERNAME }}/train-ticket-reservation:${{ github.sha }}
+            
+            # 3. Verify rollout status
+            kubectl rollout status deployment/train-ticket-app
+
+      # --- PHASE 6: NOTIFICATION ---
+      - name: Send Email Notification
+        if: success() # Only sends if all previous steps succeeded
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: Deployment Successful - Build ${{ github.sha }}
+          body: |
+            Success! The train-ticket-reservation app has been deployed.
+            
+            Access it here: http://${{ secrets.MASTER_IP }}:30007
+          to: reddysiva0046@gmail.com  # REPLACE THIS WITH YOUR ACTUAL EMAIL
+          from: GitHub Actions
