@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: train-ticket-service
+spec:
+  type: NodePort  # Changed from LoadBalancer
+  selector:
+    app: train-ticket-app
+  ports:
+    - protocol: TCP
+      port: 80           # The port available inside the cluster
+      targetPort: 8080   # The port your container (Tomcat/Java) listens on
+      nodePort: 30007    # The specific port exposed on your EC2 instance
