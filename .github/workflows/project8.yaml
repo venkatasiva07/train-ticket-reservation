@@ -104,3 +104,4 @@ jobs:
             Access it here: http://${{ secrets.MASTER_IP }}:30007
           to: reddysiva0046@gmail.com  # REPLACE THIS WITH YOUR ACTUAL EMAIL
           from: GitHub Actions
+          
