@@ -6,7 +6,7 @@ name: Java CI/CD Pipeline
 on:
   push:
     branches: 
-     - master
+     - main
 
 # Define environment variables to use in the pom.xml
 env:
